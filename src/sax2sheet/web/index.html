@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>sax2sheet</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header>
+    <h1>sax2sheet</h1>
+    <p class="subtitle">audio &rarr; saxophone sheet music (local, Phase 1: ingest &amp; raw transcription)</p>
+  </header>
+
+  <main>
+    <section id="ingest-panel">
+      <h2>1. Load audio</h2>
+      <div class="row">
+        <label>Upload file (mp3/wav/m4a)
+          <input type="file" id="file-input" accept=".mp3,.wav,.m4a,.flac,.ogg">
+        </label>
+      </div>
+      <div class="row">
+        <label>Or paste a YouTube / media URL
+          <input type="text" id="url-input" placeholder="https://...">
+        </label>
+        <button id="url-submit">Ingest URL</button>
+      </div>
+      <p id="ingest-status"></p>
+    </section>
+
+    <section id="transcribe-panel" hidden>
+      <h2>2. Transcribe</h2>
+      <p>Project: <code id="project-id"></code> &mdash; <span id="project-label"></span></p>
+      <audio id="player" controls></audio>
+
+      <div class="row">
+        <button id="separate-btn">Separate into stems (Demucs, slow on CPU)</button>
+        <span id="separate-status"></span>
+      </div>
+      <div class="row" id="stem-picker">
+        <span>Transcribe from:</span>
+        <label class="inline"><input type="radio" name="stem" value="" checked> Full mix</label>
+        <label class="inline"><input type="radio" name="stem" value="vocals"> Vocals</label>
+        <label class="inline"><input type="radio" name="stem" value="other"> Other (sax/lead usually here)</label>
+        <label class="inline"><input type="radio" name="stem" value="bass"> Bass</label>
+        <label class="inline"><input type="radio" name="stem" value="drums"> Drums</label>
+      </div>
+      <audio id="stem-player" controls></audio>
+
+      <div class="row">
+        <button id="transcribe-btn">Transcribe selected</button>
+        <span id="transcribe-status"></span>
+      </div>
+    </section>
+
+    <section id="notes-panel" hidden>
+      <h2>3. Verify &amp; edit</h2>
+      <div class="row">
+        <button id="play-btn">&#9658; Play (alto sax)</button>
+        <button id="stop-btn">&#9632; Stop</button>
+        <button id="octave-up-btn">Selection +8ve</button>
+        <button id="octave-down-btn">Selection -8ve</button>
+        <button id="delete-selection-btn">Delete selection</button>
+        <button id="undo-btn">Undo</button>
+        <label class="inline">Hide below confidence
+          <input type="range" id="confidence-slider" min="0" max="1" step="0.05" value="0">
+          <span id="confidence-value">0.00</span>
+        </label>
+      </div>
+      <p class="hint">Click a note to select (shift/ctrl-click for multiple), drag a box over empty space to
+        multi-select. Drag a note body to move it, drag its right edge to resize. Delete/Backspace removes the
+        selection.</p>
+      <div id="pianoroll-container"></div>
+      <table id="notes-table">
+        <thead>
+          <tr><th>#</th><th>Pitch (MIDI)</th><th>Onset (s)</th><th>Offset (s)</th><th>Confidence</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="arrange-panel" hidden>
+      <h2>4. Arrange for saxophone</h2>
+      <div class="row">
+        <button id="analyze-btn">Analyze tempo &amp; key</button>
+        <span id="analyze-status"></span>
+      </div>
+      <div class="row">
+        <label>Instrument
+          <select id="instrument-select">
+            <option value="soprano">Soprano (B&#9837;)</option>
+            <option value="alto" selected>Alto (E&#9837;)</option>
+            <option value="tenor">Tenor (B&#9837;)</option>
+            <option value="baritone">Baritone (E&#9837;)</option>
+          </select>
+        </label>
+        <label>Global octave shift
+          <input type="number" id="octave-shift-input" value="0" min="-3" max="3" step="1">
+        </label>
+      </div>
+      <div class="row">
+        <label>BPM
+          <input type="number" id="bpm-input" value="120" min="20" max="300" step="1">
+        </label>
+        <label>Grid
+          <select id="grid-select">
+            <option value="8th">8th notes</option>
+            <option value="16th" selected>16th notes</option>
+            <option value="8th_triplet">8th triplets</option>
+            <option value="16th_triplet">16th triplets</option>
+          </select>
+        </label>
+        <label>Swing
+          <input type="range" id="swing-slider" min="0" max="0.75" step="0.05" value="0">
+          <span id="swing-value">0.00</span>
+        </label>
+        <button id="compute-score-btn">Compute score</button>
+      </div>
+      <p id="score-status"></p>
+      <div class="row">
+        <button id="play-score-btn">&#9658; Play written line</button>
+        <button id="play-concert-btn">&#9658; Play concert pitch</button>
+        <button id="stop-score-btn">&#9632; Stop</button>
+      </div>
+      <p class="hint">Amber notes were octave-folded to fit the saxophone's written range (B&#9837;3&ndash;F&#9839;6).</p>
+      <div id="score-pianoroll-container"></div>
+    </section>
+
+    <section id="export-panel" hidden>
+      <h2>5. Notation &amp; export</h2>
+      <div class="row">
+        <button id="render-staff-btn">Render staff</button>
+        <button id="export-pdf-btn">Download PDF</button>
+        <a id="download-musicxml" href="#" download>Download MusicXML</a>
+        <a id="download-midi" href="#" download>Download MIDI</a>
+        <span id="export-status"></span>
+      </div>
+      <p class="hint">The staff preview rounds durations to standard note values for display; the exported
+        MusicXML/MIDI preserve exact quantized timing (music21 splits arbitrary durations into correctly tied
+        notation on export).</p>
+      <div id="staff-container"></div>
+    </section>
+  </main>
+
+  <script src="/vendor/soundfont-player.min.js"></script>
+  <script src="/vendor/vexflow.js"></script>
+  <script src="/vendor/jspdf.umd.min.js"></script>
+  <script src="/vendor/svg2pdf.umd.min.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/pianoroll.js"></script>
+  <script src="/js/playback.js"></script>
+  <script src="/js/staff.js"></script>
+  <script src="/js/export.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
