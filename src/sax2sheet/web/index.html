@@ -72,12 +72,18 @@
         multi-select. Drag a note body to move it, drag its right edge to resize. Delete/Backspace removes the
         selection.</p>
       <div id="pianoroll-container"></div>
-      <table id="notes-table">
-        <thead>
-          <tr><th>#</th><th>Pitch (MIDI)</th><th>Onset (s)</th><th>Offset (s)</th><th>Confidence</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <details id="notes-table-details">
+        <summary>Raw note data (<span id="notes-count">0</span> notes) &mdash; click to expand</summary>
+        <div class="table-scroll">
+          <table id="notes-table">
+            <thead>
+              <tr><th>#</th><th>Pitch (MIDI)</th><th>Onset (s)</th><th>Offset (s)</th><th>Confidence</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
+      <p class="row"><a href="#arrange-panel" class="next-link">Continue to arrangement &darr;</a></p>
     </section>
 
     <section id="arrange-panel" hidden>
@@ -125,6 +131,7 @@
       </div>
       <p class="hint">Amber notes were octave-folded to fit the saxophone's written range (B&#9837;3&ndash;F&#9839;6).</p>
       <div id="score-pianoroll-container"></div>
+      <p class="row"><a href="#export-panel" class="next-link">Continue to notation &amp; export &darr;</a></p>
     </section>
 
     <section id="export-panel" hidden>
@@ -140,6 +147,7 @@
         MusicXML/MIDI preserve exact quantized timing (music21 splits arbitrary durations into correctly tied
         notation on export).</p>
       <div id="staff-container"></div>
+      <p class="row"><a href="#ingest-panel" class="next-link">&uarr; Back to top</a></p>
     </section>
   </main>
 

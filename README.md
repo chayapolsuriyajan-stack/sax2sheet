@@ -24,11 +24,22 @@ To enable Demucs-based stem separation (optional, heavy — pulls in torch):
 uv sync --extra separate
 ```
 
-If a CUDA GPU is available, the "Use GPU" checkbox next to the Separate
-button (auto-detected via `torch.cuda.is_available()`) runs separation on it
-instead of CPU — a multi-minute CPU separation drops to seconds. No extra
-setup beyond a CUDA-enabled torch install; the checkbox is disabled
-automatically when no GPU is visible.
+If you have a CUDA GPU, install the `separate-gpu` extra instead of
+`separate` — PyPI's default `torch` wheel is CPU-only on Windows, so the
+plain `separate` extra will not use your GPU even if one is present:
+
+```bash
+uv sync --extra separate-gpu
+```
+
+This resolves `torch` from PyTorch's CUDA wheel index (`cu130`, for
+CUDA 13.0-class drivers e.g. RTX 50-series/Blackwell) instead of PyPI's
+CPU-only default — see `[tool.uv.sources]` / `[[tool.uv.index]]` in
+`pyproject.toml`. If your driver needs a different CUDA version, change the
+index there (available indices: https://download.pytorch.org/whl/torch/).
+The "Use GPU" checkbox next to the Separate button is auto-disabled unless
+`torch.cuda.is_available()` reports a usable GPU — a multi-minute CPU
+separation drops to seconds on GPU.
 
 ## Run
 

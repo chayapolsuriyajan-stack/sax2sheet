@@ -206,12 +206,15 @@ function initPianoRoll(notes) {
 
 function renderTable(notes) {
   notesTableBody.innerHTML = "";
+  let visibleCount = 0;
   notes.forEach((n, i) => {
     if (n.deleted) return;
+    visibleCount++;
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${i}</td><td>${n.pitch_midi}</td><td>${n.onset_s.toFixed(3)}</td><td>${n.offset_s.toFixed(3)}</td><td>${n.confidence.toFixed(2)}</td>`;
     notesTableBody.appendChild(tr);
   });
+  document.getElementById("notes-count").textContent = visibleCount;
 }
 
 playBtn.addEventListener("click", async () => {

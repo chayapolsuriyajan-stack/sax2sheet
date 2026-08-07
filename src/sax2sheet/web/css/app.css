@@ -86,4 +86,28 @@ label.inline { flex-direction: row; align-items: center; gap: .4rem; }
 #staff-container svg { display: block; }
 a { color: var(--accent); }
 
+/* Raw note table: collapsed by default and height-capped when open, so a
+   real transcription (hundreds of notes) never turns a section into
+   thousands of pixels of scrolling -- the piano roll above already shows
+   the same data visually; this is just for detail/debugging. */
+details#notes-table-details { margin-top: .75rem; }
+details#notes-table-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: .85rem;
+  padding: .3rem 0;
+}
+details#notes-table-details[open] summary { color: var(--text); margin-bottom: .5rem; }
+.table-scroll { max-height: 280px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; }
+.table-scroll table { margin-top: 0; }
+.table-scroll thead th { position: sticky; top: 0; background: var(--panel); }
+
+.next-link {
+  display: inline-block;
+  margin-top: .5rem;
+  font-size: .9rem;
+  text-decoration: none;
+}
+.next-link:hover { text-decoration: underline; }
+
 code { background: #101216; padding: .1rem .35rem; border-radius: 3px; }

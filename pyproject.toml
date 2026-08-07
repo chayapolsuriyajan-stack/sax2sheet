@@ -20,7 +20,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# CPU separation: works everywhere, no GPU driver/CUDA-version dependency.
 separate = [
+    "demucs>=4.0",
+    "torch>=2.2",
+]
+# GPU separation: same deps, but torch resolves from PyTorch's CUDA wheel
+# index instead of PyPI's CPU-only default (see [tool.uv.sources] below).
+# Pick the extra matching your GPU/driver's supported CUDA version.
+separate-gpu = [
     "demucs>=4.0",
     "torch>=2.2",
 ]
@@ -31,6 +39,27 @@ dev = [
 
 [tool.uv]
 package = true
+# `separate` and `separate-gpu` both provide `torch` from different indices;
+# without this, uv treats installing both together as ambiguous and errors.
+conflicts = [
+    [
+        { extra = "separate" },
+        { extra = "separate-gpu" },
+    ],
+]
+
+[tool.uv.sources]
+# Only torch resolves from the PyTorch index, and only under separate-gpu --
+# everything else (including torch under the plain `separate` extra) still
+# comes from PyPI. cu130 targets CUDA 13.0-class drivers (e.g. RTX 50-series
+# Blackwell GPUs); swap the index below for your CUDA version if different --
+# see https://download.pytorch.org/whl/torch/ for available cuNNN indices.
+torch = { index = "pytorch-cu130", extra = "separate-gpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]
