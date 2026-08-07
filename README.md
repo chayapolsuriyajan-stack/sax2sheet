@@ -9,8 +9,10 @@ setup and running.
 
 ## Setup
 
-Requires Python 3.11 and [`uv`](https://github.com/astral-sh/uv). ffmpeg must
-be on PATH (used for audio normalization and YouTube post-processing).
+Requires Python 3.10 and [`uv`](https://github.com/astral-sh/uv) (Basic
+Pitch's ONNX backend, which avoids a TensorFlow install, only activates on
+Windows for Python <3.11). ffmpeg must be on PATH (used for audio
+normalization and YouTube post-processing).
 
 ```bash
 uv sync
@@ -21,6 +23,12 @@ To enable Demucs-based stem separation (optional, heavy — pulls in torch):
 ```bash
 uv sync --extra separate
 ```
+
+If a CUDA GPU is available, the "Use GPU" checkbox next to the Separate
+button (auto-detected via `torch.cuda.is_available()`) runs separation on it
+instead of CPU — a multi-minute CPU separation drops to seconds. No extra
+setup beyond a CUDA-enabled torch install; the checkbox is disabled
+automatically when no GPU is visible.
 
 ## Run
 
@@ -61,7 +69,14 @@ All five build phases are implemented and verified end-to-end:
    exported PDF is exactly the SVG shown on screen.
 5. **Stem separation** -- optional Demucs stage (`--extra separate`), stem
    caching, in-browser stem audition and re-transcription without
-   re-separating.
+   re-separating, with an optional GPU device for the separation pass.
+
+Sax sample playback (sections 3-4) uses vendored local sample files
+(`web/vendor/soundfonts/`) rather than a CDN, so it works without live
+internet access -- consistent with this being a local tool. Rendering the
+staff preview (section 5) is instant and purely client-side; MusicXML/MIDI
+generation via music21 (the slow step) only runs when you actually click a
+download link, not on every staff render.
 
 ### Known limitations
 

@@ -1,12 +1,22 @@
 // Sampled saxophone preview (Soundfont-player, FluidR3_GM sax patches).
 // Plays either the written (transposed, per-instrument) line or the raw
 // concert-pitch transcription, selected by the caller via `pitchField`.
+//
+// Sample data is loaded from local vendored files (web/vendor/soundfonts/),
+// not the Soundfont-player default CDN -- this is a *local* tool and
+// shouldn't need live internet access to play back a preview, and a slow or
+// blocked CDN would otherwise fail silently (playback just doesn't happen,
+// with no visible error).
 const GM_SAX_NAME = {
   soprano: "soprano_sax",
   alto: "alto_sax",
   tenor: "tenor_sax",
   baritone: "baritone_sax",
 };
+
+function localSoundfontUrl(name) {
+  return `/vendor/soundfonts/${name}-mp3.js`;
+}
 
 class SaxPlayer {
   constructor() {
@@ -17,12 +27,22 @@ class SaxPlayer {
 
   async _ensureLoaded(name) {
     if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Browsers may create a fresh AudioContext in a "suspended" state even
+    // inside a click handler; resume() is a no-op if it's already running.
+    if (this.ctx.state === "suspended") {
+      await this.ctx.resume();
+    }
     if (this._instruments[name]) return this._instruments[name];
     if (this._loading[name]) return this._loading[name];
-    this._loading[name] = Soundfont.instrument(this.ctx, name).then((inst) => {
-      this._instruments[name] = inst;
-      return inst;
-    });
+    this._loading[name] = Soundfont.instrument(this.ctx, name, { nameToUrl: localSoundfontUrl })
+      .then((inst) => {
+        this._instruments[name] = inst;
+        return inst;
+      })
+      .catch((err) => {
+        delete this._loading[name];
+        throw new Error(`Failed to load ${name} sample set: ${err.message || err}`);
+      });
     return this._loading[name];
   }
 

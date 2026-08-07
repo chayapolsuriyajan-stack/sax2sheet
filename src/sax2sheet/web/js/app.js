@@ -12,6 +12,7 @@ const transcribeStatus = document.getElementById("transcribe-status");
 const separateBtn = document.getElementById("separate-btn");
 const separateStatus = document.getElementById("separate-status");
 const stemPlayer = document.getElementById("stem-player");
+const gpuCheckbox = document.getElementById("gpu-checkbox");
 
 const notesPanel = document.getElementById("notes-panel");
 const notesTableBody = document.querySelector("#notes-table tbody");
@@ -54,7 +55,28 @@ let currentProjectId = null;
 let pianoRoll = null;
 let scorePianoRoll = null;
 let lastScoreNotes = [];
+let lastKeySharps = 0;
 let lastScoreModel = null;
+let exportedFiles = null; // { musicxml_url, midi_url } once the server export has actually run
+
+// Mirrors core/notation.score_to_json_model, but built client-side from data
+// we already have (compute-score's response) -- rendering the staff preview
+// doesn't need a music21 Score or file I/O at all, only the note list. This
+// is what keeps "Compute score" -> "Render staff" fast: the slow step
+// (music21 building/writing MusicXML+MIDI) only runs when a download is
+// actually requested, not just to preview the staff.
+function buildScoreModel(notes, keySharps, bpm, timeSignature) {
+  const playable = notes
+    .filter((n) => !n.deleted && n.written_pitch_midi != null && n.beat != null && n.duration_beats != null)
+    .sort((a, b) => a.beat - b.beat)
+    .map((n) => ({
+      beat: n.beat,
+      duration_beats: n.duration_beats,
+      written_pitch_midi: n.written_pitch_midi,
+      folded: n.folded,
+    }));
+  return { key_sharps: keySharps, time_signature: timeSignature, bpm, notes: playable };
+}
 
 function currentScoreSettings() {
   return {
@@ -79,6 +101,18 @@ function onProjectReady(project) {
   separateStatus.textContent = "";
   stemPlayer.removeAttribute("src");
   document.querySelector('input[name="stem"][value=""]').checked = true;
+
+  gpuCheckbox.checked = false;
+  gpuCheckbox.disabled = true;
+  api.getSeparateCapabilities(project.project_id)
+    .then((caps) => {
+      gpuCheckbox.disabled = !caps.gpu_available;
+      gpuCheckbox.checked = caps.gpu_available;
+      gpuCheckbox.title = caps.gpu_available
+        ? "CUDA GPU detected"
+        : caps.demucs_available ? "No CUDA GPU detected -- separation will run on CPU" : "Demucs not installed";
+    })
+    .catch(() => { /* separate extra not installed; leave the checkbox disabled */ });
 }
 
 fileInput.addEventListener("change", async () => {
@@ -112,11 +146,12 @@ urlSubmit.addEventListener("click", async () => {
 
 separateBtn.addEventListener("click", async () => {
   if (!currentProjectId) return;
-  separateStatus.textContent = "Separating (can take a few minutes on CPU)...";
+  const device = gpuCheckbox.checked ? "cuda" : "cpu";
+  separateStatus.textContent = `Separating on ${device.toUpperCase()} (CPU can take a few minutes)...`;
   separateBtn.disabled = true;
   try {
-    const result = await api.separate(currentProjectId);
-    separateStatus.textContent = `Stems ready: ${result.stems.join(", ")}`;
+    const result = await api.separate(currentProjectId, device);
+    separateStatus.textContent = `Stems ready (${device}): ${result.stems.join(", ")}`;
   } catch (e) {
     separateStatus.textContent = `Error: ${e.message}`;
   } finally {
@@ -185,11 +220,12 @@ playBtn.addEventListener("click", async () => {
   playBtn.textContent = "Loading sample...";
   try {
     await saxPlayer.playNotes(pianoRoll.notes);
-    playBtn.textContent = "▶ Play (alto sax)";
+    transcribeStatus.textContent = `Playing ${pianoRoll.notes.filter((n) => !n.deleted).length} notes...`;
   } catch (e) {
-    playBtn.textContent = "▶ Play (alto sax)";
-    alert(`Playback failed: ${e.message}`);
+    console.error("Playback failed", e);
+    transcribeStatus.textContent = `Playback failed: ${e.message}`;
   } finally {
+    playBtn.textContent = "▶ Play (alto sax)";
     playBtn.disabled = false;
   }
 });
@@ -217,6 +253,12 @@ swingSlider.addEventListener("input", () => {
   swingValue.textContent = parseFloat(swingSlider.value).toFixed(2);
 });
 
+// Any arrangement setting invalidates a previously-generated export -- the
+// next download click must regenerate MusicXML/MIDI from the new settings.
+[instrumentSelect, octaveShiftInput, bpmInput, gridSelect, swingSlider].forEach((el) => {
+  el.addEventListener("change", () => { exportedFiles = null; });
+});
+
 analyzeBtn.addEventListener("click", async () => {
   if (!currentProjectId) return;
   analyzeStatus.textContent = "Analyzing...";
@@ -239,6 +281,8 @@ computeScoreBtn.addEventListener("click", async () => {
   try {
     const result = await api.computeScore(currentProjectId, currentScoreSettings());
     lastScoreNotes = result.notes;
+    lastKeySharps = result.key_sharps;
+    exportedFiles = null; // settings changed since the last time files were generated
     const foldedCount = result.notes.filter((n) => n.folded).length;
     scoreStatus.textContent = `${result.notes.length} notes, written key: ${result.key_sharps} sharps` +
       (foldedCount ? ` (${foldedCount} octave-folded, highlighted amber)` : "");
@@ -256,22 +300,18 @@ computeScoreBtn.addEventListener("click", async () => {
   }
 });
 
-renderStaffBtn.addEventListener("click", async () => {
-  if (!currentProjectId) return;
-  exportStatus.textContent = "Exporting...";
-  renderStaffBtn.disabled = true;
-  try {
-    const result = await api.exportScore(currentProjectId, currentScoreSettings());
-    lastScoreModel = result.score_model;
-    renderStaff(staffContainer, lastScoreModel);
-    downloadMusicxmlLink.href = result.musicxml_url;
-    downloadMidiLink.href = result.midi_url;
-    exportStatus.textContent = `Rendered ${lastScoreModel.notes.length} notes.`;
-  } catch (e) {
-    exportStatus.textContent = `Error: ${e.message}`;
-  } finally {
-    renderStaffBtn.disabled = false;
+renderStaffBtn.addEventListener("click", () => {
+  if (!lastScoreNotes.length) {
+    exportStatus.textContent = "Compute a score first (section 4).";
+    return;
   }
+  // Purely client-side: no server round trip, no music21. This is what
+  // makes the staff preview instant regardless of how slow MusicXML/MIDI
+  // export is -- that only runs when a file is actually downloaded, below.
+  const settings = currentScoreSettings();
+  lastScoreModel = buildScoreModel(lastScoreNotes, lastKeySharps, settings.quantize.bpm, settings.quantize.time_signature);
+  renderStaff(staffContainer, lastScoreModel);
+  exportStatus.textContent = `Rendered ${lastScoreModel.notes.length} notes.`;
 });
 
 exportPdfBtn.addEventListener("click", async () => {
@@ -282,14 +322,57 @@ exportPdfBtn.addEventListener("click", async () => {
   }
 });
 
-playScoreBtn.addEventListener("click", async () => {
-  if (!lastScoreNotes.length) return;
-  await saxPlayer.playNotes(lastScoreNotes, { instrument: instrumentSelect.value, pitchField: "written" });
-});
+// MusicXML/MIDI actually require building a music21 Score and writing files
+// server-side -- the slow step. Deferred until the user asks for one of
+// these specifically, rather than running on every "Render staff" click.
+async function ensureExported() {
+  if (exportedFiles) return exportedFiles;
+  exportStatus.textContent = "Building MusicXML/MIDI...";
+  const result = await api.exportScore(currentProjectId, currentScoreSettings());
+  exportedFiles = { musicxml_url: result.musicxml_url, midi_url: result.midi_url };
+  return exportedFiles;
+}
 
-playConcertBtn.addEventListener("click", async () => {
-  if (!lastScoreNotes.length) return;
-  await saxPlayer.playNotes(lastScoreNotes, { instrument: instrumentSelect.value, pitchField: "concert" });
-});
+async function downloadExport(ev, urlKey, label) {
+  ev.preventDefault();
+  const link = ev.currentTarget;
+  const originalText = link.textContent;
+  link.textContent = `Preparing ${label}...`;
+  try {
+    const files = await ensureExported();
+    exportStatus.textContent = `${label} ready.`;
+    window.location.href = files[urlKey];
+  } catch (e) {
+    exportStatus.textContent = `Error: ${e.message}`;
+  } finally {
+    link.textContent = originalText;
+  }
+}
+
+downloadMusicxmlLink.addEventListener("click", (ev) => downloadExport(ev, "musicxml_url", "MusicXML"));
+downloadMidiLink.addEventListener("click", (ev) => downloadExport(ev, "midi_url", "MIDI"));
+
+async function playScorePreview(button, pitchField) {
+  if (!lastScoreNotes.length) {
+    scoreStatus.textContent = "Compute a score first (no notes to play).";
+    return;
+  }
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Loading sample...";
+  try {
+    await saxPlayer.playNotes(lastScoreNotes, { instrument: instrumentSelect.value, pitchField });
+    scoreStatus.textContent = `Playing ${lastScoreNotes.filter((n) => !n.deleted).length} notes (${pitchField})...`;
+  } catch (e) {
+    console.error("Playback failed", e);
+    scoreStatus.textContent = `Playback failed: ${e.message}`;
+  } finally {
+    button.textContent = originalText;
+    button.disabled = false;
+  }
+}
+
+playScoreBtn.addEventListener("click", () => playScorePreview(playScoreBtn, "written"));
+playConcertBtn.addEventListener("click", () => playScorePreview(playConcertBtn, "concert"));
 
 stopScoreBtn.addEventListener("click", () => saxPlayer.stop());

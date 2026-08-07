@@ -40,10 +40,34 @@ def is_available() -> bool:
         return False
 
 
-def separate_project(project: Project, force: bool = False) -> list[str]:
+def gpu_available() -> bool:
+    """Whether a CUDA device is visible to torch. Checked lazily -- importing
+    torch is itself not free, so callers that only need is_available() should
+    use that instead.
+    """
+    try:
+        import torch
+        return torch.cuda.is_available()
+    except ImportError:
+        return False
+
+
+def _resolve_device(device: str) -> str:
+    if device == "cuda" and not gpu_available():
+        raise RuntimeError("device='cuda' requested but no CUDA GPU is available to torch.")
+    if device == "auto":
+        return "cuda" if gpu_available() else "cpu"
+    return device
+
+
+def separate_project(project: Project, force: bool = False, device: str = "auto") -> list[str]:
     """Run Demucs on project.source_wav, populating project.stem_wav(name)
     for each stem in STEM_NAMES. Returns the list of stem names now
     available. Raises RuntimeError if the `separate` extra isn't installed.
+
+    `device` is one of "auto" (use a GPU if torch reports one, else CPU),
+    "cpu", or "cuda". CPU separation is the safe default (minutes for a
+    typical track); a GPU cuts that to seconds when one is available.
     """
     if not is_available():
         raise RuntimeError(
@@ -59,8 +83,11 @@ def separate_project(project: Project, force: bool = False) -> list[str]:
     from demucs.apply import apply_model
     from demucs.pretrained import get_model
 
+    resolved_device = _resolve_device(device)
+
     model = get_model(DEMUCS_MODEL)
     model.eval()
+    model.to(resolved_device)
 
     wav, sr = sf.read(str(project.source_wav), dtype="float32", always_2d=True)
     wav = wav.T  # (channels, samples)
@@ -72,9 +99,9 @@ def separate_project(project: Project, force: bool = False) -> list[str]:
         wav = librosa.resample(wav, orig_sr=sr, target_sr=model.samplerate, axis=1)
         sr = model.samplerate
 
-    tensor = torch.from_numpy(wav).unsqueeze(0)  # (batch=1, channels, samples)
+    tensor = torch.from_numpy(wav).unsqueeze(0).to(resolved_device)  # (batch=1, channels, samples)
     with torch.no_grad():
-        sources = apply_model(model, tensor, progress=False)[0]  # (n_stems, channels, samples)
+        sources = apply_model(model, tensor, progress=False)[0].cpu()  # (n_stems, channels, samples)
 
     produced = {}
     for name, source in zip(model.sources, sources):

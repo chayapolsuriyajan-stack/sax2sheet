@@ -82,14 +82,20 @@ const api = {
     return res.json();
   },
 
-  async separate(projectId) {
-    const res = await fetch(`/api/projects/${projectId}/separate`, { method: "POST" });
+  async separate(projectId, device = "auto") {
+    const res = await fetch(`/api/projects/${projectId}/separate?device=${device}`, { method: "POST" });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
 
   async getStems(projectId) {
     const res = await fetch(`/api/projects/${projectId}/separate`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getSeparateCapabilities(projectId) {
+    const res = await fetch(`/api/projects/${projectId}/separate/capabilities`);
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
