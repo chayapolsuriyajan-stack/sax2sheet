@@ -8,7 +8,7 @@
 <body>
   <header>
     <h1>sax2sheet</h1>
-    <p class="subtitle">audio &rarr; saxophone sheet music (local, Phase 1: ingest &amp; raw transcription)</p>
+    <p class="subtitle">audio &rarr; sheet music for sax, guitar, or piano (local)</p>
   </header>
 
   <main>
@@ -59,6 +59,7 @@
       <div class="row">
         <button id="play-btn">&#9658; Play (alto sax)</button>
         <button id="stop-btn">&#9632; Stop</button>
+        <button id="test-tone-btn" title="Plays a plain beep, no sample loading involved -- use this to check your speakers/browser audio output independently of the sax sample.">Test speaker (beep)</button>
         <button id="octave-up-btn">Selection +8ve</button>
         <button id="octave-down-btn">Selection -8ve</button>
         <button id="delete-selection-btn">Delete selection</button>
@@ -87,7 +88,7 @@
     </section>
 
     <section id="arrange-panel" hidden>
-      <h2>4. Arrange for saxophone</h2>
+      <h2>4. Arrange for instrument</h2>
       <div class="row">
         <button id="analyze-btn">Analyze tempo &amp; key</button>
         <span id="analyze-status"></span>
@@ -95,10 +96,12 @@
       <div class="row">
         <label>Instrument
           <select id="instrument-select">
-            <option value="soprano">Soprano (B&#9837;)</option>
-            <option value="alto" selected>Alto (E&#9837;)</option>
-            <option value="tenor">Tenor (B&#9837;)</option>
-            <option value="baritone">Baritone (E&#9837;)</option>
+            <option value="soprano">Soprano Sax (B&#9837;)</option>
+            <option value="alto" selected>Alto Sax (E&#9837;)</option>
+            <option value="tenor">Tenor Sax (B&#9837;)</option>
+            <option value="baritone">Baritone Sax (E&#9837;)</option>
+            <option value="guitar">Guitar</option>
+            <option value="piano">Piano</option>
           </select>
         </label>
         <label>Global octave shift
@@ -129,7 +132,7 @@
         <button id="play-concert-btn">&#9658; Play concert pitch</button>
         <button id="stop-score-btn">&#9632; Stop</button>
       </div>
-      <p class="hint">Amber notes were octave-folded to fit the saxophone's written range (B&#9837;3&ndash;F&#9839;6).</p>
+      <p class="hint">Amber notes were octave-folded to fit the selected instrument's written range.</p>
       <div id="score-pianoroll-container"></div>
       <p class="row"><a href="#export-panel" class="next-link">Continue to notation &amp; export &darr;</a></p>
     </section>

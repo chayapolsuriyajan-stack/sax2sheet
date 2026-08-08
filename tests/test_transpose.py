@@ -64,3 +64,35 @@ def test_key_signature_concert_c_major_to_soprano_d_major():
 
 def test_key_signature_concert_c_major_to_baritone_a_major():
     assert transpose_key_signature(0, Instrument.BARITONE) == 3
+
+
+def test_concert_c4_to_guitar_written_c5():
+    # Guitar is notated an octave above sounding pitch: concert C4 (60) -> written C5 (72)
+    out = transpose_notes([_note(60)], Instrument.GUITAR)
+    assert out[0].written_pitch_midi == 72
+    assert out[0].folded is False
+
+
+def test_concert_c4_to_piano_written_c4():
+    # Piano is concert pitch: no transposition at all
+    out = transpose_notes([_note(60)], Instrument.PIANO)
+    assert out[0].written_pitch_midi == 60
+    assert out[0].folded is False
+
+
+def test_piano_full_range_never_folds_typical_melody():
+    # Piano's written range (A0-C8) comfortably covers anything a monophonic
+    # melody transcription would produce.
+    out = transpose_notes([_note(40), _note(60), _note(90)], Instrument.PIANO)
+    assert all(not n.folded for n in out)
+
+
+def test_key_signature_octave_transposition_preserves_signature():
+    # A full-octave transposition (guitar, +12) never changes the key
+    # signature -- only the pitch class matters for sharps/flats.
+    assert transpose_key_signature(2, Instrument.GUITAR) == 2  # D major stays D major
+
+
+def test_key_signature_unison_transposition_preserves_signature():
+    # Piano (+0) is a no-op transposition.
+    assert transpose_key_signature(2, Instrument.PIANO) == 2

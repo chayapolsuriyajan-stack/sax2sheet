@@ -1,4 +1,4 @@
-// Sampled saxophone preview (Soundfont-player, FluidR3_GM sax patches).
+// Sampled instrument preview (Soundfont-player, FluidR3_GM patches).
 // Plays either the written (transposed, per-instrument) line or the raw
 // concert-pitch transcription, selected by the caller via `pitchField`.
 //
@@ -7,11 +7,13 @@
 // shouldn't need live internet access to play back a preview, and a slow or
 // blocked CDN would otherwise fail silently (playback just doesn't happen,
 // with no visible error).
-const GM_SAX_NAME = {
+const GM_INSTRUMENT_NAME = {
   soprano: "soprano_sax",
   alto: "alto_sax",
   tenor: "tenor_sax",
   baritone: "baritone_sax",
+  guitar: "acoustic_guitar_nylon",
+  piano: "acoustic_grand_piano",
 };
 
 function localSoundfontUrl(name) {
@@ -49,11 +51,11 @@ class SaxPlayer {
   /**
    * @param {Array} notes - NoteEvent-shaped objects.
    * @param {Object} opts
-   * @param {string} opts.instrument - one of soprano|alto|tenor|baritone
+   * @param {string} opts.instrument - one of soprano|alto|tenor|baritone|guitar|piano
    * @param {"written"|"concert"} opts.pitchField - which pitch to play
    */
   async playNotes(notes, { instrument = "alto", pitchField = "written" } = {}) {
-    const gmName = GM_SAX_NAME[instrument] || "alto_sax";
+    const gmName = GM_INSTRUMENT_NAME[instrument] || "alto_sax";
     const inst = await this._ensureLoaded(gmName);
     this.stop();
     const startAt = this.ctx.currentTime + 0.15;
@@ -69,6 +71,25 @@ class SaxPlayer {
     for (const inst of Object.values(this._instruments)) {
       if (inst.stop) inst.stop();
     }
+  }
+
+  /**
+   * Plays a plain oscillator beep -- zero network/soundfont dependency.
+   * Diagnostic aid: if this is silent, the problem is the browser's audio
+   * output (muted tab, wrong output device, OS volume), not soundfont
+   * loading. If this works but instrument playback doesn't, the problem is
+   * specific to sample loading -- check the console for the failed URL.
+   */
+  async testTone() {
+    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (this.ctx.state === "suspended") await this.ctx.resume();
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.frequency.value = 440;
+    gain.gain.value = 0.2;
+    osc.connect(gain).connect(this.ctx.destination);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.4);
   }
 }
 

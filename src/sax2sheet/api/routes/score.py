@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from sax2sheet.api.schemas import AnalysisOut, ExportOut, ScoreOut, ScoreSettingsIn
 from sax2sheet.core.analyze import analyze_audio
 from sax2sheet.core.edits import apply_edits, load_edits
-from sax2sheet.core.models import Instrument, NoteEvent, QuantizeSettings
+from sax2sheet.core.models import INSTRUMENTS, Instrument, NoteEvent, QuantizeSettings
 from sax2sheet.core.notation import build_score, export_midi, export_musicxml, score_to_json_model
 from sax2sheet.core.quantize import quantize_notes
 from sax2sheet.core.storage import Project, load_project
@@ -99,18 +99,10 @@ def export_score(project_id: str, settings: ScoreSettingsIn):
     project = _require_transcribed_project(project_id)
     transposed, written_sharps, instrument = _compute_transposed_notes(project, settings)
 
-    instrument_names = {
-        "soprano": "Soprano Saxophone",
-        "alto": "Alto Saxophone",
-        "tenor": "Tenor Saxophone",
-        "baritone": "Baritone Saxophone",
-    }
     bpm = settings.quantize.bpm
     time_sig = settings.quantize.time_signature
 
-    m21_score = build_score(
-        transposed, written_sharps, bpm, time_sig, instrument_names.get(settings.instrument, "Saxophone")
-    )
+    m21_score = build_score(transposed, written_sharps, bpm, time_sig, INSTRUMENTS[instrument].name)
     export_musicxml(m21_score, project.export_path("musicxml"))
     export_midi(m21_score, project.export_path("mid"))
 

@@ -49,6 +49,8 @@ class Instrument(str, Enum):
     TENOR = "tenor"
     SOPRANO = "soprano"
     BARITONE = "baritone"
+    GUITAR = "guitar"
+    PIANO = "piano"
 
 
 @dataclass(slots=True)
@@ -70,6 +72,16 @@ INSTRUMENTS: dict[Instrument, InstrumentSpec] = {
     Instrument.ALTO: InstrumentSpec("Alto Saxophone", +9, gm_program=65),
     Instrument.TENOR: InstrumentSpec("Tenor Saxophone", +14, gm_program=66),
     Instrument.BARITONE: InstrumentSpec("Baritone Saxophone", +21, gm_program=67),
+    # Guitar is conventionally notated an octave above its sounding pitch
+    # (for treble-clef readability), hence +12 rather than a "real"
+    # transposition -- the key signature is unaffected by a full-octave
+    # shift (see transpose_key_signature). Range is an approximation of
+    # standard notation range (low open E to roughly the 19th-20th fret on
+    # the high E string); very high lead lines will still fold.
+    Instrument.GUITAR: InstrumentSpec("Guitar", +12, written_low=40, written_high=91, gm_program=24),
+    # Piano is concert pitch (no transposition) with the full 88-key range,
+    # so folding essentially never triggers for a monophonic melody line.
+    Instrument.PIANO: InstrumentSpec("Piano", 0, written_low=21, written_high=108, gm_program=0),
 }
 
 

@@ -20,6 +20,7 @@ const pianorollContainer = document.getElementById("pianoroll-container");
 
 const playBtn = document.getElementById("play-btn");
 const stopBtn = document.getElementById("stop-btn");
+const testToneBtn = document.getElementById("test-tone-btn");
 const octaveUpBtn = document.getElementById("octave-up-btn");
 const octaveDownBtn = document.getElementById("octave-down-btn");
 const deleteSelectionBtn = document.getElementById("delete-selection-btn");
@@ -234,6 +235,16 @@ playBtn.addEventListener("click", async () => {
 });
 
 stopBtn.addEventListener("click", () => saxPlayer.stop());
+
+testToneBtn.addEventListener("click", async () => {
+  try {
+    await saxPlayer.testTone();
+    transcribeStatus.textContent = "Played a test beep -- if you didn't hear it, check system volume/output device, not this app.";
+  } catch (e) {
+    console.error("Test tone failed", e);
+    transcribeStatus.textContent = `Test tone failed: ${e.message}`;
+  }
+});
 
 octaveUpBtn.addEventListener("click", () => pianoRoll && pianoRoll.shiftSelectionOctave(1));
 octaveDownBtn.addEventListener("click", () => pianoRoll && pianoRoll.shiftSelectionOctave(-1));

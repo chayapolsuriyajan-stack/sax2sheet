@@ -1,8 +1,9 @@
 # sax2sheet
 
 Local tool that turns audio (YouTube link, media URL, or uploaded file) into
-saxophone-readable sheet music: transcribe, verify in a piano roll, transpose
-for alto/tenor/soprano/baritone, and export PDF / MIDI / MusicXML.
+readable sheet music: transcribe, verify in a piano roll, arrange for
+alto/tenor/soprano/baritone sax, guitar, or piano, and export PDF / MIDI /
+MusicXML.
 
 See [`docs/` / plan] for the full architecture. This README covers day-to-day
 setup and running.
@@ -69,12 +70,13 @@ All five build phases are implemented and verified end-to-end:
 1. **Ingest & transcription** -- YouTube/URL/upload -> normalized audio ->
    content-hashed project -> Basic Pitch (ONNX) note events.
 2. **Piano-roll editing & playback** -- select/delete/move/resize notes,
-   box-select, confidence filter, undo; alto/tenor/soprano/baritone sampled
-   playback (Soundfont-player, FluidR3_GM).
+   box-select, confidence filter, undo; sampled playback for every supported
+   instrument (Soundfont-player, FluidR3_GM).
 3. **Analysis, quantization & transposition** -- librosa tempo/key estimate;
-   grid/swing quantization; Bb/Eb transposition with octave-fold + flag for
-   out-of-range notes; unit-tested (`tests/test_quantize.py`,
-   `tests/test_transpose.py`).
+   grid/swing quantization; per-instrument transposition (Bb/Eb sax family,
+   guitar's conventional +1-octave notation, piano's concert pitch) with
+   octave-fold + flag for out-of-range notes; unit-tested
+   (`tests/test_quantize.py`, `tests/test_transpose.py`).
 4. **Notation & export** -- music21-built score; MusicXML/MIDI export;
    VexFlow staff preview; client-side SVG -> PDF (jsPDF + svg2pdf.js), so the
    exported PDF is exactly the SVG shown on screen.
@@ -82,12 +84,14 @@ All five build phases are implemented and verified end-to-end:
    caching, in-browser stem audition and re-transcription without
    re-separating, with an optional GPU device for the separation pass.
 
-Sax sample playback (sections 3-4) uses vendored local sample files
+Sample playback (sections 3-4) uses vendored local sample files
 (`web/vendor/soundfonts/`) rather than a CDN, so it works without live
-internet access -- consistent with this being a local tool. Rendering the
-staff preview (section 5) is instant and purely client-side; MusicXML/MIDI
-generation via music21 (the slow step) only runs when you actually click a
-download link, not on every staff render.
+internet access -- consistent with this being a local tool. A "Test speaker
+(beep)" button plays a plain oscillator tone with no sample loading involved,
+for isolating browser/audio-output problems from sample-loading problems.
+Rendering the staff preview (section 5) is instant and purely client-side;
+MusicXML/MIDI generation via music21 (the slow step) only runs when you
+actually click a download link, not on every staff render.
 
 ### Known limitations
 
@@ -106,3 +110,11 @@ download link, not on every staff render.
   and torchcodec's prebuilt wheels fail to load their native library on this
   platform. `core/separate.py` avoids the whole chain by calling Demucs's
   model directly and writing stems with `soundfile` instead.
+- Guitar and piano's written ranges/transpositions are approximations (see
+  `core/models.py` `INSTRUMENTS`) -- guitar in particular can be voiced far
+  wider than standard notation covers, so expect more octave-folding on
+  wide-range source material than with the sax family.
+- The staff preview (and the current PDF/MusicXML export) always renders on
+  a single treble staff. This is a reasonable fit for sax/guitar but not for
+  piano, where a real piano part would split across a grand staff (treble +
+  bass clef) -- low piano notes will show with many ledger lines instead.
