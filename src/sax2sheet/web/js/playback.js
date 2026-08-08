@@ -49,6 +49,23 @@ class SaxPlayer {
   }
 
   /**
+   * Kick off loading a sample set in the background without playing
+   * anything -- call this as soon as the instrument choice is known (e.g.
+   * on page load for the default, or when the arrangement dropdown
+   * changes), so the actual Play click hits an already-warm cache instead
+   * of paying the multi-second decode cost at the moment you want sound.
+   * Decoding several MB of MP3 samples is the real source of playback
+   * latency, not the tiny scheduling pre-roll in playNotes().
+   */
+  preload(instrument) {
+    const gmName = GM_INSTRUMENT_NAME[instrument] || "alto_sax";
+    // Fire and forget; playNotes()/_ensureLoaded() will just reuse this
+    // in-flight or completed load. Swallow errors here -- they'll surface
+    // properly the moment an actual play is attempted.
+    this._ensureLoaded(gmName).catch(() => {});
+  }
+
+  /**
    * @param {Array} notes - NoteEvent-shaped objects.
    * @param {Object} opts
    * @param {string} opts.instrument - one of soprano|alto|tenor|baritone|guitar|piano
@@ -73,7 +90,10 @@ class SaxPlayer {
     // mistake for "playback isn't working at all".
     const firstOnset = live.length ? Math.min(...live.map((n) => n.onset_s)) : 0;
 
-    const startAt = this.ctx.currentTime + 0.15;
+    // Small safety margin only -- just enough to avoid scheduling a note in
+    // the past if there's a tiny gap between reading currentTime and the
+    // node actually starting, not a deliberate pause.
+    const startAt = this.ctx.currentTime + 0.03;
     let scheduled = 0;
     let missing = 0;
     for (const n of live) {

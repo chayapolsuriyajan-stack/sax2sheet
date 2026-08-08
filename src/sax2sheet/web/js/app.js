@@ -394,3 +394,10 @@ playScoreBtn.addEventListener("click", () => playScorePreview(playScoreBtn, "wri
 playConcertBtn.addEventListener("click", () => playScorePreview(playConcertBtn, "concert"));
 
 stopScoreBtn.addEventListener("click", () => saxPlayer.stop());
+
+// Warm the sample cache in the background as soon as an instrument choice
+// is known, instead of paying the multi-second decode cost the moment you
+// actually click Play. Section 3 always previews on alto; section 4 warms
+// whatever's currently selected, and re-warms on every change.
+saxPlayer.preload("alto");
+instrumentSelect.addEventListener("change", () => saxPlayer.preload(instrumentSelect.value));
