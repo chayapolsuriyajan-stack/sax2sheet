@@ -223,8 +223,10 @@ playBtn.addEventListener("click", async () => {
   playBtn.disabled = true;
   playBtn.textContent = "Loading sample...";
   try {
-    await saxPlayer.playNotes(pianoRoll.notes);
-    transcribeStatus.textContent = `Playing ${pianoRoll.notes.filter((n) => !n.deleted).length} notes...`;
+    const { scheduled, missing } = await saxPlayer.playNotes(pianoRoll.notes);
+    transcribeStatus.textContent = missing > 0
+      ? `Playing ${scheduled} notes -- ${missing} had no matching sample and were skipped silently (see console).`
+      : `Playing ${scheduled} notes...`;
   } catch (e) {
     console.error("Playback failed", e);
     transcribeStatus.textContent = `Playback failed: ${e.message}`;
@@ -375,8 +377,10 @@ async function playScorePreview(button, pitchField) {
   button.disabled = true;
   button.textContent = "Loading sample...";
   try {
-    await saxPlayer.playNotes(lastScoreNotes, { instrument: instrumentSelect.value, pitchField });
-    scoreStatus.textContent = `Playing ${lastScoreNotes.filter((n) => !n.deleted).length} notes (${pitchField})...`;
+    const { scheduled, missing } = await saxPlayer.playNotes(lastScoreNotes, { instrument: instrumentSelect.value, pitchField });
+    scoreStatus.textContent = missing > 0
+      ? `Playing ${scheduled} notes (${pitchField}) -- ${missing} had no matching sample and were skipped silently (see console).`
+      : `Playing ${scheduled} notes (${pitchField})...`;
   } catch (e) {
     console.error("Playback failed", e);
     scoreStatus.textContent = `Playback failed: ${e.message}`;

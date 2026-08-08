@@ -53,18 +53,45 @@ class SaxPlayer {
    * @param {Object} opts
    * @param {string} opts.instrument - one of soprano|alto|tenor|baritone|guitar|piano
    * @param {"written"|"concert"} opts.pitchField - which pitch to play
+   * @returns {{scheduled: number, missing: number}} diagnostic counts --
+   *   Soundfont-player's play() returns undefined (and only a console.warn,
+   *   no thrown error) when it has no sample buffer for a requested pitch,
+   *   which otherwise looks identical to "played successfully" from the
+   *   caller's perspective. Surfacing `missing` lets the UI show that
+   *   distinction instead of silently doing nothing.
    */
   async playNotes(notes, { instrument = "alto", pitchField = "written" } = {}) {
     const gmName = GM_INSTRUMENT_NAME[instrument] || "alto_sax";
     const inst = await this._ensureLoaded(gmName);
     this.stop();
+
+    const live = notes.filter((n) => !n.deleted);
+    // Schedule relative to the first note's onset, not its absolute position
+    // in the original recording -- otherwise a melody that doesn't start
+    // until well into the source track means clicking Play produces several
+    // silent seconds before anything audible happens, which is easy to
+    // mistake for "playback isn't working at all".
+    const firstOnset = live.length ? Math.min(...live.map((n) => n.onset_s)) : 0;
+
     const startAt = this.ctx.currentTime + 0.15;
-    for (const n of notes) {
-      if (n.deleted) continue;
+    let scheduled = 0;
+    let missing = 0;
+    for (const n of live) {
       const pitch = pitchField === "concert" ? n.pitch_midi : (n.written_pitch_midi ?? n.pitch_midi);
       const duration = Math.max(0.08, n.offset_s - n.onset_s);
-      inst.play(pitch, startAt + n.onset_s, { duration, gain: Math.max(0.3, Math.min(1, n.confidence)) });
+      const conf = typeof n.confidence === "number" && !Number.isNaN(n.confidence) ? n.confidence : 1;
+      const node = inst.play(pitch, startAt + (n.onset_s - firstOnset), { duration, gain: Math.max(0.3, Math.min(1, conf)) });
+      if (node) {
+        scheduled++;
+      } else {
+        missing++;
+        console.warn(`No sample buffer for MIDI pitch ${pitch} (instrument: ${gmName})`);
+      }
     }
+    if (missing > 0) {
+      console.warn(`playNotes: ${missing}/${scheduled + missing} notes had no matching sample and were silently skipped by soundfont-player.`);
+    }
+    return { scheduled, missing };
   }
 
   stop() {
