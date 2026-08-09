@@ -50,6 +50,10 @@ uv run uvicorn sax2sheet.api.main:app --reload
 
 Then open http://127.0.0.1:8000.
 
+**Or just double-click `run.bat`** (or the `sax2sheet.lnk` shortcut, which
+points at it) — it starts the server in its own window and opens the app in
+your default browser automatically.
+
 ## Test
 
 ```bash
