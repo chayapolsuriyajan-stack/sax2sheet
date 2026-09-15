@@ -49,3 +49,41 @@ def test_different_audio_gets_different_projects(tmp_path, monkeypatch):
     project2 = get_or_create_project(wav_b, source_label="b.wav")
 
     assert project1.id != project2.id
+
+
+def test_score_source_kind_writes_to_source_musicxml(tmp_path, monkeypatch):
+    from sax2sheet.config import settings
+
+    monkeypatch.setattr(settings, "data_dir", tmp_path / "data")
+
+    xml = tmp_path / "piece.musicxml"
+    xml.write_text("<score-partwise/>")
+
+    project = get_or_create_project(xml, source_label="piece.musicxml", source_kind="score")
+
+    manifest = project.load_manifest()
+    assert manifest.source_kind == "score"
+    assert manifest.stages["imported"] is True
+    assert manifest.stages["ingested"] is False
+    assert project.source_musicxml.exists()
+    assert project.source_musicxml.read_text() == "<score-partwise/>"
+    assert not project.source_wav.exists()
+
+
+def test_old_manifest_without_source_kind_defaults_to_audio(tmp_path, monkeypatch):
+    """Manifests written before source_kind existed have no such key in
+    their JSON. Manifest.from_json does cls(**data), so this must not raise
+    and must fall back to the "audio" default.
+    """
+    from sax2sheet.config import settings
+    from sax2sheet.core.storage import Manifest
+
+    monkeypatch.setattr(settings, "data_dir", tmp_path / "data")
+
+    old_json = (
+        '{"project_id": "abc123", "source_label": "old.wav", '
+        '"created_at": 1.0, "stages": {"ingested": true}, "active_stem": null}'
+    )
+    manifest = Manifest.from_json(old_json)
+    assert manifest.source_kind == "audio"
+    assert manifest.stages == {"ingested": True}

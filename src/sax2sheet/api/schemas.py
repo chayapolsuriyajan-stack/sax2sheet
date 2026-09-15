@@ -13,6 +13,7 @@ class ProjectSummary(BaseModel):
     project_id: str
     source_label: str
     created_at: float
+    source_kind: str = "audio"  # "audio" | "score" -- see core/storage.py
     stages: dict[str, bool]
     active_stem: str | None = None
 
@@ -29,6 +30,11 @@ class NoteOut(BaseModel):
     folded: bool = False
     folded_octaves: int = 0
     deleted: bool = False
+    part_id: str | None = None
+    staff: int = 1
+    voice: int = 1
+    hand: str | None = None
+    finger: int | None = None
 
 
 class TranscribeRequest(BaseModel):
@@ -53,7 +59,7 @@ class QuantizeSettingsIn(BaseModel):
 
 
 class ScoreSettingsIn(BaseModel):
-    instrument: str = "alto"  # soprano | alto | tenor | baritone
+    instrument: str = "alto"  # soprano | alto | tenor | baritone | guitar | piano
     global_octave_shift: int = 0
     quantize: QuantizeSettingsIn = QuantizeSettingsIn()
 

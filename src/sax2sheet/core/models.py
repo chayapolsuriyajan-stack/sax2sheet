@@ -39,6 +39,15 @@ class NoteEvent:
     id: str | None = None
     deleted: bool = False
 
+    # Populated by score_import.py. Audio transcription leaves these at their
+    # defaults (one part, one staff), so every existing pipeline stage is
+    # unaffected -- only imported scores carry real notation structure.
+    part_id: str | None = None
+    staff: int = 1              # 1 = upper/treble, 2 = lower/bass
+    voice: int = 1              # polyphony within a single staff
+    hand: str | None = None     # "L" | "R" -- derived from staff, user-overridable
+    finger: int | None = None   # 1-5, from MusicXML <fingering> when present
+
     @property
     def duration_s(self) -> float:
         return self.offset_s - self.onset_s
@@ -98,3 +107,53 @@ class ScoreSettings:
     instrument: Instrument = Instrument.ALTO
     global_octave_shift: int = 0
     quantize: QuantizeSettings = field(default_factory=QuantizeSettings)
+
+
+# -- Imported scores -----------------------------------------------------
+#
+# A ScoreDoc is what score_import.py produces from a MusicXML/MIDI file (see
+# core/score_import.py). It carries the things a real score has that a flat
+# NoteEvent list alone doesn't: title/composer for display, signature and
+# tempo changes over time, and measure boundaries (needed for "loop bars
+# 9-16" in the tutorial). Imported scores bypass quantize.py/transpose.py
+# entirely -- they're already notated and already in the right rhythm.
+
+
+@dataclass(slots=True)
+class TempoMark:
+    beat: float
+    bpm: float
+
+
+@dataclass(slots=True)
+class TimeSignatureChange:
+    beat: float
+    time_signature: str  # e.g. "4/4"
+
+
+@dataclass(slots=True)
+class KeySignatureChange:
+    beat: float
+    sharps: int  # negative = flats, matches transpose.py's convention
+
+
+@dataclass(slots=True)
+class PartInfo:
+    part_id: str
+    name: str
+    staves: int = 1  # 1 = single staff (sax/guitar/vocal), 2 = grand staff (piano)
+
+
+@dataclass(slots=True)
+class ScoreDoc:
+    title: str = ""
+    composer: str = ""
+    parts: list[PartInfo] = field(default_factory=list)
+    key_signatures: list[KeySignatureChange] = field(default_factory=list)
+    time_signatures: list[TimeSignatureChange] = field(default_factory=list)
+    tempos: list[TempoMark] = field(default_factory=list)
+    # Beat offset where each measure starts, in order; measure_beats[0] is
+    # measure 1's start. A loop over "bars 9-16" is
+    # [measure_beats[8], measure_beats[16] or end-of-piece).
+    measure_beats: list[float] = field(default_factory=list)
+    notes: list[NoteEvent] = field(default_factory=list)
