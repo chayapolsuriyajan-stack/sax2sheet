@@ -26,6 +26,30 @@
         <button id="url-submit">Ingest URL</button>
       </div>
       <p id="ingest-status"></p>
+      <p class="hint">&mdash; or, skip transcription entirely and import a real score below &mdash;</p>
+      <div class="row">
+        <label>Import a score (MusicXML/.mxl/MIDI)
+          <input type="file" id="score-file-input" accept=".musicxml,.xml,.mxl,.mid,.midi">
+        </label>
+      </div>
+      <p id="import-status"></p>
+    </section>
+
+    <section id="scoredoc-panel" hidden>
+      <h2>Imported score</h2>
+      <p><code id="scoredoc-project-id"></code> &mdash; <span id="scoredoc-title"></span></p>
+      <div class="row">
+        <button id="render-scoredoc-btn">Render staff</button>
+        <button id="export-scoredoc-pdf-btn">Download PDF</button>
+        <a id="download-scoredoc-musicxml" href="#" download>Download MusicXML</a>
+        <a id="download-scoredoc-midi" href="#" download>Download MIDI</a>
+        <span id="scoredoc-status"></span>
+      </div>
+      <p class="hint">Same preview caveats as the audio pipeline's staff view: durations are rounded to standard
+        note values for display; the exported MusicXML/MIDI are built directly from the imported score and aren't
+        subject to that rounding. Full play-along tutorial (falling notes, keyboard/fingering visuals, wait-for-note)
+        is a later addition -- for now this is import, view, and export.</p>
+      <div id="scoredoc-staff-container"></div>
     </section>
 
     <section id="transcribe-panel" hidden>
@@ -163,6 +187,7 @@
   <script src="/js/playback.js"></script>
   <script src="/js/staff.js"></script>
   <script src="/js/export.js"></script>
+  <script src="/js/import.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

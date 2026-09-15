@@ -109,4 +109,27 @@ const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
+
+  async uploadScore(file, midiHandSplitPitch = 60) {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/import/upload?midi_hand_split_pitch=${midiHandSplitPitch}`, {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getScoreDoc(projectId) {
+    const res = await fetch(`/api/projects/${projectId}/scoredoc`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async exportScoreDoc(projectId) {
+    const res = await fetch(`/api/projects/${projectId}/export_scoredoc`, { method: "POST" });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
 };

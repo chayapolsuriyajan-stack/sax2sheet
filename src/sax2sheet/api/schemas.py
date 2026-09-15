@@ -119,3 +119,22 @@ class ScoreDocOut(BaseModel):
     tempos: list[TempoMarkOut]
     measure_beats: list[float]
     notes: list[NoteOut]
+
+
+class ScoreDocModelOut(BaseModel):
+    """core/notation.score_doc_to_json_model()'s output -- what the
+    browser's grand-staff renderer (web/js/staff.js renderGrandStaff)
+    consumes.
+    """
+    title: str
+    key_sharps: int
+    time_signature: str
+    bpm: float
+    staves: int
+    notes: list[dict]
+
+
+class ExportScoreDocOut(BaseModel):
+    score_model: ScoreDocModelOut
+    musicxml_url: str
+    midi_url: str

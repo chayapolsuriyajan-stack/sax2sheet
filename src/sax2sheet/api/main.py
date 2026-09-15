@@ -33,5 +33,23 @@ def get_audio(project_id: str, stem: str | None = None):
     return FileResponse(path, media_type="audio/wav")
 
 
+class RevalidatingStaticFiles(StaticFiles):
+    """StaticFiles serves no Cache-Control header by default, which leaves
+    browsers free to apply *heuristic* caching -- serving JS/CSS straight
+    from disk cache without even a conditional request, for a duration the
+    browser picks itself. That's a real correctness risk here, not just a
+    dev-loop annoyance: this app changes frequently, and `run.bat`'s
+    "restart server, refresh browser" workflow can otherwise leave a viewer
+    running stale JS against a newer API. `no-cache` forces revalidation
+    (an If-None-Match round trip) on every load; the existing ETag still
+    makes that cheap when nothing changed.
+    """
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 # Static frontend last, so /api/* above takes precedence.
-app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
+app.mount("/", RevalidatingStaticFiles(directory=WEB_DIR, html=True), name="web")

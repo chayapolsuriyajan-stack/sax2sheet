@@ -156,6 +156,14 @@ def _meta(score, field: str) -> str:
     md = score.metadata
     if md is None:
         return ""
+    if field == "title":
+        # music21's parser splits <work-title> into .movementName (not
+        # .title) whenever a file also has a <movement-title> tag -- which
+        # music21's own writer always emits alongside <work-title>. Verified
+        # empirically: .title is None in that case even though a title is
+        # clearly present. .bestTitle resolves correctly regardless of which
+        # tag(s) the source file actually has.
+        return md.bestTitle or ""
     return getattr(md, field, None) or ""
 
 

@@ -6,11 +6,25 @@ from dataclasses import asdict
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
-from sax2sheet.api.schemas import AnalysisOut, ExportOut, ScoreDocOut, ScoreOut, ScoreSettingsIn
+from sax2sheet.api.schemas import (
+    AnalysisOut,
+    ExportOut,
+    ExportScoreDocOut,
+    ScoreDocOut,
+    ScoreOut,
+    ScoreSettingsIn,
+)
 from sax2sheet.core.analyze import analyze_audio
 from sax2sheet.core.edits import apply_edits, load_edits
 from sax2sheet.core.models import INSTRUMENTS, Instrument, NoteEvent, QuantizeSettings, ScoreDoc
-from sax2sheet.core.notation import build_score, export_midi, export_musicxml, score_to_json_model
+from sax2sheet.core.notation import (
+    build_score,
+    build_score_from_doc,
+    export_midi,
+    export_musicxml,
+    score_doc_to_json_model,
+    score_to_json_model,
+)
 from sax2sheet.core.quantize import quantize_notes
 from sax2sheet.core.storage import Project, load_project
 from sax2sheet.core.transcribe import load_notes
@@ -131,6 +145,36 @@ def get_scoredoc(project_id: str):
         raise HTTPException(404, "no imported score for this project")
     doc = ScoreDoc.from_json(project.score_json.read_text())
     return asdict(doc)
+
+
+@router.post("/export_scoredoc", response_model=ExportScoreDocOut)
+def export_scoredoc(project_id: str, part_id: str | None = None):
+    """The imported-score equivalent of /export above: builds a music21
+    Score directly from the ScoreDoc (grand staff preserved) via
+    build_score_from_doc, writes MusicXML/MIDI to the same export paths, and
+    returns the JSON model the grand-staff renderer consumes. No
+    quantize/transpose step -- an imported score is already notated.
+    """
+    project = load_project(project_id)
+    if project is None:
+        raise HTTPException(404, "project not found")
+    if not project.score_json.exists():
+        raise HTTPException(404, "no imported score for this project")
+
+    doc = ScoreDoc.from_json(project.score_json.read_text())
+    try:
+        m21_score = build_score_from_doc(doc, part_id=part_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+    export_musicxml(m21_score, project.export_path("musicxml"))
+    export_midi(m21_score, project.export_path("mid"))
+
+    return {
+        "score_model": score_doc_to_json_model(doc, part_id=part_id),
+        "musicxml_url": f"/api/projects/{project_id}/export/musicxml",
+        "midi_url": f"/api/projects/{project_id}/export/mid",
+    }
 
 
 @router.get("/export/{fmt}")
