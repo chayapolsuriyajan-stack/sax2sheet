@@ -111,3 +111,6 @@ details#notes-table-details[open] summary { color: var(--text); margin-bottom: .
 .next-link:hover { text-decoration: underline; }
 
 code { background: #101216; padding: .1rem .35rem; border-radius: 3px; }
+
+#fallingnotes-container { background: #101216; border-radius: 4px 4px 0 0; overflow: hidden; }
+#keyboard-container { background: #101216; border-radius: 0 0 4px 4px; overflow: hidden; margin-bottom: .75rem; }

@@ -7,6 +7,8 @@
 
 const scoreFileInput = document.getElementById("score-file-input");
 const importStatus = document.getElementById("import-status");
+const omrFileInput = document.getElementById("omr-file-input");
+const omrStatus = document.getElementById("omr-status");
 
 const scoredocPanel = document.getElementById("scoredoc-panel");
 const scoredocProjectIdEl = document.getElementById("scoredoc-project-id");
@@ -18,8 +20,32 @@ const downloadScoredocMidi = document.getElementById("download-scoredoc-midi");
 const scoredocStatus = document.getElementById("scoredoc-status");
 const scoredocStaffContainer = document.getElementById("scoredoc-staff-container");
 
+const tutorialPlayBtn = document.getElementById("tutorial-play-btn");
+const tutorialPauseBtn = document.getElementById("tutorial-pause-btn");
+const tutorialRestartBtn = document.getElementById("tutorial-restart-btn");
+const tutorialTempoSlider = document.getElementById("tutorial-tempo-slider");
+const tutorialTempoValue = document.getElementById("tutorial-tempo-value");
+const fallingNotesContainer = document.getElementById("fallingnotes-container");
+const keyboardContainer = document.getElementById("keyboard-container");
+
 let currentScoreProjectId = null;
 let scoredocExportedFiles = null; // cached {musicxml_url, midi_url} once export has actually run
+
+let tutorialKeyboard = null;
+let tutorialFallingNotes = null;
+let tutorialTransport = null;
+
+async function onProjectImported(project, statusEl, label) {
+  statusEl.textContent = `Imported: ${project.source_label}`;
+  currentScoreProjectId = project.project_id;
+  scoredocExportedFiles = null;
+
+  scoredocProjectIdEl.textContent = project.project_id;
+  scoredocPanel.hidden = false;
+
+  const doc = await api.getScoreDoc(project.project_id);
+  scoredocTitleEl.textContent = doc.title || "(untitled)";
+}
 
 scoreFileInput.addEventListener("change", async () => {
   const file = scoreFileInput.files[0];
@@ -27,18 +53,27 @@ scoreFileInput.addEventListener("change", async () => {
   importStatus.textContent = `Importing ${file.name}...`;
   try {
     const project = await api.uploadScore(file);
-    importStatus.textContent = `Imported: ${project.source_label}`;
-    currentScoreProjectId = project.project_id;
-    scoredocExportedFiles = null;
-
-    scoredocProjectIdEl.textContent = project.project_id;
-    scoredocPanel.hidden = false;
-
-    const doc = await api.getScoreDoc(project.project_id);
-    scoredocTitleEl.textContent = doc.title || "(untitled)";
+    await onProjectImported(project, importStatus);
   } catch (e) {
     console.error("Score import failed", e);
     importStatus.textContent = `Import failed: ${e.message}`;
+  }
+});
+
+omrFileInput.addEventListener("change", async () => {
+  const file = omrFileInput.files[0];
+  if (!file) return;
+  omrStatus.textContent = `Scanning ${file.name} (OMR -- this can take a few minutes)...`;
+  omrFileInput.disabled = true;
+  try {
+    const project = await api.uploadScan(file);
+    await onProjectImported(project, omrStatus);
+    omrStatus.textContent = `Imported via OMR: ${project.source_label}. Check the result carefully -- OMR accuracy is approximate.`;
+  } catch (e) {
+    console.error("OMR import failed", e);
+    omrStatus.textContent = `OMR failed: ${e.message}`;
+  } finally {
+    omrFileInput.disabled = false;
   }
 });
 
@@ -57,6 +92,7 @@ renderScoredocBtn.addEventListener("click", async () => {
     const doc = await api.getScoreDoc(currentScoreProjectId);
     const model = scoreDocToModel(doc);
     renderGrandStaff(scoredocStaffContainer, model);
+    setUpTutorial(model);
     scoredocStatus.textContent = `Rendered ${model.notes.length} notes across ${model.staves} staff/staves.`;
   } catch (e) {
     console.error("Render failed", e);
@@ -64,6 +100,58 @@ renderScoredocBtn.addEventListener("click", async () => {
   } finally {
     renderScoredocBtn.disabled = false;
   }
+});
+
+function setUpTutorial(model) {
+  if (tutorialTransport) tutorialTransport.pause();
+
+  const pitches = model.notes.map((n) => n.written_pitch_midi);
+  const minMidi = pitches.length ? Math.max(21, Math.min(...pitches) - 3) : 48;
+  const maxMidi = pitches.length ? Math.min(108, Math.max(...pitches) + 3) : 84;
+
+  if (!tutorialKeyboard) {
+    tutorialKeyboard = new PianoKeyboard(keyboardContainer, { minMidi, maxMidi });
+  } else {
+    tutorialKeyboard.setRange(minMidi, maxMidi);
+  }
+  tutorialKeyboard.draw();
+
+  if (!tutorialFallingNotes) {
+    tutorialFallingNotes = new FallingNotes(fallingNotesContainer, tutorialKeyboard);
+  }
+  tutorialFallingNotes.setNotes(model.notes);
+
+  if (!tutorialTransport) {
+    tutorialTransport = new Transport(model.bpm);
+    tutorialTransport.onTick((beat) => tutorialFallingNotes.render(beat));
+  } else {
+    tutorialTransport.bpm = model.bpm;
+    tutorialTransport.seek(0);
+  }
+  tutorialTransport.tickOnce();
+}
+
+tutorialPlayBtn.addEventListener("click", () => {
+  if (!tutorialTransport) return;
+  tutorialTransport.play();
+});
+
+tutorialPauseBtn.addEventListener("click", () => {
+  if (!tutorialTransport) return;
+  tutorialTransport.pause();
+});
+
+tutorialRestartBtn.addEventListener("click", () => {
+  if (!tutorialTransport) return;
+  tutorialTransport.pause();
+  tutorialTransport.seek(0);
+  tutorialTransport.tickOnce();
+});
+
+tutorialTempoSlider.addEventListener("input", () => {
+  const scale = parseFloat(tutorialTempoSlider.value);
+  tutorialTempoValue.textContent = `${Math.round(scale * 100)}%`;
+  if (tutorialTransport) tutorialTransport.setTempoScale(scale);
 });
 
 function scoreDocToModel(doc, partId = null) {
