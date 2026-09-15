@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from sax2sheet.api.routes import edits, ingest, projects, score, separate, transcribe
+from sax2sheet.api.routes import edits, import_score, ingest, projects, score, separate, transcribe
 from sax2sheet.core.storage import load_project
 
 WEB_DIR = Path(__file__).resolve().parents[1] / "web"
@@ -15,6 +15,7 @@ app = FastAPI(title="sax2sheet")
 
 app.include_router(projects.router)
 app.include_router(ingest.router)
+app.include_router(import_score.router)
 app.include_router(transcribe.router)
 app.include_router(edits.router)
 app.include_router(score.router)

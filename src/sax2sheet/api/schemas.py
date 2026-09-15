@@ -84,3 +84,38 @@ class ExportOut(BaseModel):
     score_model: ScoreModelOut
     musicxml_url: str
     midi_url: str
+
+
+class PartInfoOut(BaseModel):
+    part_id: str
+    name: str
+    staves: int = 1
+
+
+class TempoMarkOut(BaseModel):
+    beat: float
+    bpm: float
+
+
+class TimeSignatureChangeOut(BaseModel):
+    beat: float
+    time_signature: str
+
+
+class KeySignatureChangeOut(BaseModel):
+    beat: float
+    sharps: int
+
+
+class ScoreDocOut(BaseModel):
+    """An imported score (source_kind == 'score'), as parsed by
+    score_import.py -- see core/models.ScoreDoc.
+    """
+    title: str
+    composer: str
+    parts: list[PartInfoOut]
+    key_signatures: list[KeySignatureChangeOut]
+    time_signatures: list[TimeSignatureChangeOut]
+    tempos: list[TempoMarkOut]
+    measure_beats: list[float]
+    notes: list[NoteOut]

@@ -8,7 +8,8 @@ output in place — callers always produce a new list.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 
 
@@ -157,3 +158,20 @@ class ScoreDoc:
     # [measure_beats[8], measure_beats[16] or end-of-piece).
     measure_beats: list[float] = field(default_factory=list)
     notes: list[NoteEvent] = field(default_factory=list)
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self), indent=2)
+
+    @classmethod
+    def from_json(cls, text: str) -> "ScoreDoc":
+        data = json.loads(text)
+        return cls(
+            title=data.get("title", ""),
+            composer=data.get("composer", ""),
+            parts=[PartInfo(**p) for p in data.get("parts", [])],
+            key_signatures=[KeySignatureChange(**k) for k in data.get("key_signatures", [])],
+            time_signatures=[TimeSignatureChange(**t) for t in data.get("time_signatures", [])],
+            tempos=[TempoMark(**t) for t in data.get("tempos", [])],
+            measure_beats=data.get("measure_beats", []),
+            notes=[NoteEvent(**n) for n in data.get("notes", [])],
+        )

@@ -6,10 +6,10 @@ from dataclasses import asdict
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
-from sax2sheet.api.schemas import AnalysisOut, ExportOut, ScoreOut, ScoreSettingsIn
+from sax2sheet.api.schemas import AnalysisOut, ExportOut, ScoreDocOut, ScoreOut, ScoreSettingsIn
 from sax2sheet.core.analyze import analyze_audio
 from sax2sheet.core.edits import apply_edits, load_edits
-from sax2sheet.core.models import INSTRUMENTS, Instrument, NoteEvent, QuantizeSettings
+from sax2sheet.core.models import INSTRUMENTS, Instrument, NoteEvent, QuantizeSettings, ScoreDoc
 from sax2sheet.core.notation import build_score, export_midi, export_musicxml, score_to_json_model
 from sax2sheet.core.quantize import quantize_notes
 from sax2sheet.core.storage import Project, load_project
@@ -113,6 +113,24 @@ def export_score(project_id: str, settings: ScoreSettingsIn):
         "musicxml_url": f"/api/projects/{project_id}/export/musicxml",
         "midi_url": f"/api/projects/{project_id}/export/mid",
     }
+
+
+@router.get("/scoredoc", response_model=ScoreDocOut)
+def get_scoredoc(project_id: str):
+    """Returns the parsed ScoreDoc for an imported score (source_kind ==
+    'score'), i.e. what score_import.py produced -- title/composer, staff
+    and hand structure, key/time/tempo changes, measure boundaries, and the
+    full note list. This is what the grand-staff renderer and the tutorial
+    (both later workstreams) consume for an imported score, in place of the
+    audio pipeline's quantize -> transpose -> notation chain.
+    """
+    project = load_project(project_id)
+    if project is None:
+        raise HTTPException(404, "project not found")
+    if not project.score_json.exists():
+        raise HTTPException(404, "no imported score for this project")
+    doc = ScoreDoc.from_json(project.score_json.read_text())
+    return asdict(doc)
 
 
 @router.get("/export/{fmt}")
