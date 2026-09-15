@@ -28,12 +28,17 @@ const tutorialTempoValue = document.getElementById("tutorial-tempo-value");
 const fallingNotesContainer = document.getElementById("fallingnotes-container");
 const keyboardContainer = document.getElementById("keyboard-container");
 
+const tutorialEnableInputBtn = document.getElementById("tutorial-enable-input-btn");
+const tutorialWaitCheckbox = document.getElementById("tutorial-wait-checkbox");
+const tutorialInputStatus = document.getElementById("tutorial-input-status");
+
 let currentScoreProjectId = null;
 let scoredocExportedFiles = null; // cached {musicxml_url, midi_url} once export has actually run
 
 let tutorialKeyboard = null;
 let tutorialFallingNotes = null;
 let tutorialTransport = null;
+let tutorialController = null;
 
 async function onProjectImported(project, statusEl, label) {
   statusEl.textContent = `Imported: ${project.source_label}`;
@@ -129,7 +134,78 @@ function setUpTutorial(model) {
     tutorialTransport.seek(0);
   }
   tutorialTransport.tickOnce();
+
+  if (tutorialController) tutorialController.stop();
+  tutorialController = new TutorialController(tutorialTransport, model.notes);
+  tutorialController.onStatus = renderTutorialInputStatus;
+  tutorialController.onWaitModeChange = syncTutorialWaitModeUI;
+  tutorialWaitCheckbox.checked = false;
+  tutorialWaitCheckbox.disabled = true;
+  tutorialInputStatus.textContent = "";
 }
+
+/** Keeps the checkbox/Play/Pause buttons in sync with wait mode's actual
+ * state -- fires on both a user toggling the checkbox AND wait mode turning
+ * itself off automatically when the piece completes (verified: without
+ * this, completing a piece in wait mode left Play permanently disabled).
+ */
+function syncTutorialWaitModeUI(enabled) {
+  tutorialWaitCheckbox.checked = enabled;
+  tutorialPlayBtn.disabled = enabled;
+  tutorialPauseBtn.disabled = enabled;
+  // Deliberately doesn't touch tutorialInputStatus's text here -- leaves
+  // whatever the last onStatus update said (e.g. "✓ F4 (4/4)") visible
+  // after auto-completion, instead of clearing it.
+}
+
+function midiName(midi) {
+  const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  const octave = Math.floor(midi / 12) - 1;
+  return `${names[((midi % 12) + 12) % 12]}${octave}`;
+}
+
+function renderTutorialInputStatus({ expected, satisfied, groupIndex, total }) {
+  const names = expected.map(midiName).join(", ");
+  tutorialInputStatus.textContent = satisfied
+    ? `✓ ${names} (${groupIndex + 1}/${total})`
+    : `Waiting for: ${names} (${groupIndex + 1}/${total})`;
+  tutorialInputStatus.style.color = satisfied ? "#5bc0ff" : "";
+}
+
+tutorialEnableInputBtn.addEventListener("click", async () => {
+  if (!tutorialController) {
+    tutorialInputStatus.textContent = "Compute/render the tutorial first.";
+    return;
+  }
+  tutorialEnableInputBtn.disabled = true;
+  tutorialInputStatus.textContent = "Requesting input access...";
+  try {
+    const active = await tutorialController.ensureInput();
+    if (active === "midi") {
+      tutorialInputStatus.textContent = "MIDI keyboard connected.";
+      tutorialWaitCheckbox.disabled = false;
+    } else if (active === "mic") {
+      tutorialInputStatus.textContent = "No MIDI device found -- using microphone (approximate for chords).";
+      tutorialWaitCheckbox.disabled = false;
+    } else {
+      tutorialInputStatus.textContent = "No input available (MIDI/mic access denied or unsupported).";
+    }
+  } catch (e) {
+    console.error("Enabling tutorial input failed", e);
+    tutorialInputStatus.textContent = `Error: ${e.message}`;
+  } finally {
+    tutorialEnableInputBtn.disabled = false;
+  }
+});
+
+tutorialWaitCheckbox.addEventListener("change", () => {
+  // Wait mode drives the transport itself (pauses, then advances on a
+  // correct note) -- free-running Play/Pause would fight that.
+  // syncTutorialWaitModeUI (wired as onWaitModeChange) disables/re-enables
+  // them, and also handles the auto-off-on-completion case.
+  if (!tutorialController) return;
+  tutorialController.setWaitMode(tutorialWaitCheckbox.checked);
+});
 
 tutorialPlayBtn.addEventListener("click", () => {
   if (!tutorialTransport) return;
@@ -146,6 +222,11 @@ tutorialRestartBtn.addEventListener("click", () => {
   tutorialTransport.pause();
   tutorialTransport.seek(0);
   tutorialTransport.tickOnce();
+  // Re-sync wait mode's chord-group cursor back to the start too, or it'd
+  // stay wherever it was mid-piece while the transport visibly rewound.
+  if (tutorialController && tutorialController.waitMode) {
+    tutorialController.setWaitMode(true);
+  }
 });
 
 tutorialTempoSlider.addEventListener("input", () => {

@@ -70,8 +70,16 @@
         </label>
       </div>
       <p class="hint">Notes fall toward the keyboard and light up the key as they're played. Colored by hand when
-        the score has one (blue = right hand, orange = left hand). Wait-for-correct-note and MIDI/mic input are a
-        later addition -- this plays through on its own so you can watch and follow along.</p>
+        the score has one (blue = right hand, orange = left hand).</p>
+      <div class="row">
+        <button id="tutorial-enable-input-btn">Enable input (MIDI/mic)</button>
+        <label class="inline"><input type="checkbox" id="tutorial-wait-checkbox" disabled> Wait for correct note</label>
+        <span id="tutorial-input-status"></span>
+      </div>
+      <p class="hint">Prefers a MIDI keyboard when one's connected (exact, no ambiguity); falls back to your
+        microphone otherwise. Mic-based chord verification is approximate -- it can be fooled by a wrong note a
+        semitone or two off the expected one, especially low on the keyboard (a spectral-resolution limit of
+        analyzing a live mic signal, not a bug). MIDI has none of that ambiguity.</p>
       <div id="fallingnotes-container"></div>
       <div id="keyboard-container"></div>
     </section>
@@ -214,6 +222,9 @@
   <script src="/js/keyboard.js"></script>
   <script src="/js/fallingnotes.js"></script>
   <script src="/js/transport.js"></script>
+  <script src="/js/input/mic.js"></script>
+  <script src="/js/input/midi.js"></script>
+  <script src="/js/tutorial.js"></script>
   <script src="/js/import.js"></script>
   <script src="/js/app.js"></script>
 </body>
