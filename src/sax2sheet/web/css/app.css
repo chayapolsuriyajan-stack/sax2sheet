@@ -33,6 +33,14 @@ main {
   gap: 2rem;
 }
 
+@media (max-width: 600px) {
+  header { padding: 1rem 1rem .75rem; }
+  main { padding: 1rem; gap: 1.25rem; }
+  section { padding: 1rem; }
+  input[type="text"] { min-width: 0; width: 100%; }
+  button { padding: .6rem 1rem; } /* keep tap targets comfortable */
+}
+
 section {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -76,7 +84,7 @@ table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: 1
 th, td { text-align: left; padding: .3rem .5rem; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 500; }
 
-#pianoroll-container canvas { width: 100%; background: #101216; border-radius: 4px; outline: none; }
+#pianoroll-container canvas { width: 100%; background: #101216; border-radius: 4px; outline: none; touch-action: none; }
 #pianoroll-container canvas:focus { box-shadow: 0 0 0 2px var(--accent); }
 
 label.inline { flex-direction: row; align-items: center; gap: .4rem; }

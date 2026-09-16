@@ -153,9 +153,13 @@ class PianoRoll {
 
   // -- events -------------------------------------------------------------
   _bindEvents() {
-    this.canvas.addEventListener("mousedown", (e) => this._onMouseDown(e));
-    window.addEventListener("mousemove", (e) => this._onMouseMove(e));
-    window.addEventListener("mouseup", (e) => this._onMouseUp(e));
+    // Pointer events (not mouse events) so touch on iPad/phone drives the
+    // same drag logic as a mouse, with no separate touch code path.
+    // touch-action: none (see app.css) stops the browser from treating a
+    // drag on the canvas as a page scroll/zoom gesture.
+    this.canvas.addEventListener("pointerdown", (e) => this._onMouseDown(e));
+    window.addEventListener("pointermove", (e) => this._onMouseMove(e));
+    window.addEventListener("pointerup", (e) => this._onMouseUp(e));
     this.canvas.addEventListener("keydown", (e) => this._onKeyDown(e));
     window.addEventListener("resize", () => { this._layout(); this._draw(); });
   }
@@ -167,6 +171,8 @@ class PianoRoll {
 
   _onMouseDown(e) {
     if (this.readOnly) return;
+    e.preventDefault();
+    if (e.pointerId !== undefined) this.canvas.setPointerCapture(e.pointerId);
     this.canvas.focus();
     const { x, y } = this._localXY(e);
     const hit = this._noteAt(x, y);

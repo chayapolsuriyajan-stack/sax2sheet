@@ -54,6 +54,42 @@ Then open http://127.0.0.1:8000.
 points at it) — it starts the server in its own window and opens the app in
 your default browser automatically.
 
+## Access from iPad/phone
+
+The regular `run.bat` only binds to `127.0.0.1`, so nothing but this PC can
+reach it. `run-lan.bat` starts a second, separate server bound to your whole
+LAN over HTTPS (iOS Safari blocks microphone access on plain HTTP for
+anything that isn't `localhost`, so HTTPS is required for the mic-based
+tutorial input to work from an iPad/phone).
+
+One-time setup:
+
+1. Generate a self-signed cert (already done for this machine; re-run if
+   `certs/` is missing or your PC's LAN IP changes — check with `ipconfig`):
+   ```bash
+   mkdir -p certs
+   openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/dev-key.pem -out certs/dev-cert.pem \
+     -days 825 -subj "/CN=sax2sheet-dev" \
+     -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:<your-pc-lan-ip>"
+   ```
+2. Allow the port through Windows Firewall (run in an **elevated** PowerShell
+   — this changes a system security setting, so do it yourself rather than
+   via an automated tool):
+   ```powershell
+   New-NetFirewallRule -DisplayName "sax2sheet LAN" -Direction Inbound -Protocol TCP -LocalPort 8443 -Action Allow
+   ```
+
+Then, any time you want LAN access: double-click `run-lan.bat`. It prints the
+URL to open on your iPad/phone (same wifi network as this PC). Your browser
+will warn the cert isn't trusted the first time — that's expected for a
+self-signed cert; tap through (Advanced → Visit anyway / Continue).
+
+**Known limitation:** Web MIDI isn't implemented by any browser on iOS
+(including Chrome/Edge for iOS, which are all WebKit under the hood), so a
+MIDI keyboard plugged into an iPad won't be detected there — the tutorial
+falls back to mic input automatically on iOS. MIDI keyboards work normally
+from a desktop browser.
+
 ## Test
 
 ```bash
