@@ -40,6 +40,10 @@ class MicInput {
   async start() {
     if (this.running) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // iOS Safari (and some other browsers) create a fresh AudioContext
+    // suspended even inside a user-gesture handler -- same fix already
+    // applied in playback.js for the sample-playback path.
+    if (this.ctx.state === "suspended") await this.ctx.resume();
     // Disable processing that fights pitch detection: echo cancellation and
     // noise suppression both distort the waveform in ways that throw off
     // autocorrelation-based pitch estimates.
